@@ -262,7 +262,9 @@ class NDArray:
         """
 
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        if prod(new_shape) != prod(self.shape) or not self.is_compact():
+            raise ValueError()
+        return self.as_strided(new_shape, NDArray.compact_strides(new_shape))
         ### END YOUR SOLUTION
 
     def permute(self, new_axes: tuple[int, ...]) -> "NDArray":
@@ -287,7 +289,9 @@ class NDArray:
         """
 
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        new_shape = tuple(self.shape[i] for i in new_axes)
+        new_strides = tuple(self.strides[i] for i in new_axes)
+        return self.as_strided(new_shape, new_strides)
         ### END YOUR SOLUTION
 
     def broadcast_to(self, new_shape: tuple[int, ...]) -> "NDArray":
@@ -311,7 +315,13 @@ class NDArray:
         """
 
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        len_diff = len(new_shape) - len(self.shape)
+        new_strides = [0] * len_diff + list(self.strides)
+        for i, d in enumerate(self.shape):
+            assert d == 1 or new_shape[len_diff + i] == d
+            if d == 1:
+                new_strides[len_diff + i] = 0
+        return self.as_strided(new_shape, tuple(new_strides))
         ### END YOUR SOLUTION]
 
     ### Get and set elements
@@ -378,7 +388,12 @@ class NDArray:
         assert len(slices) == self.ndim, "Need indexes equal to number of dimensions"
 
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        new_shape = tuple((s.stop - s.start + s.step - 1) // s.step for s in slices)
+        new_strides = tuple(st * s.step for st, s in zip(self.strides, slices))
+        offset = self._offset
+        for st, s in zip(self.strides, slices):
+            offset += st * s.start
+        return NDArray.make(new_shape, strides=new_strides, device=self.device, handle=self._handle, offset=offset)
         ### END YOUR SOLUTION
 
     def __setitem__(self, idxs: int | slice | tuple[int | slice, ...], other: Union["NDArray", float]) -> None:
@@ -593,7 +608,12 @@ class NDArray:
         Note: compact() before returning.
         """
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        new_strides = list(self.strides)
+        offset = self._offset
+        for axis in axes:
+            new_strides[axis] = -new_strides[axis]
+            offset += (self.shape[axis] - 1) * self.strides[axis]
+        return NDArray.make(self.shape, tuple(new_strides), self.device, self._handle, offset).compact()
         ### END YOUR SOLUTION
 
     def pad(self, axes: tuple[tuple[int, int], ...]) -> "NDArray":
@@ -603,7 +623,10 @@ class NDArray:
         axes = ( (0, 0), (1, 1), (0, 0)) pads the middle axis with a 0 on the left and right side.
         """
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        new_shape = tuple(l + r + n for (l, r), n in zip(axes, self.shape))
+        arr = self.device.full(new_shape, 0)
+        arr[tuple(slice(l, l + n) for (l, _), n in zip(axes, self.shape))] = self
+        return arr
         ### END YOUR SOLUTION
 
 def array(a: Any, dtype: str = "float32", device: BackendDevice | None = None) -> NDArray:

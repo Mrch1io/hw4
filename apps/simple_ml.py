@@ -110,7 +110,22 @@ def epoch_general_cifar10(dataloader, model, loss_fn=nn.SoftmaxLoss(), opt=None)
     """
     np.random.seed(4)
     ### BEGIN YOUR SOLUTION
-    raise NotImplementedError()
+    if opt is not None:
+        model.train()
+    else:
+        model.eval()
+    correct, total_loss = 0, 0
+    for X, y in dataloader:
+        X, y = ndl.Tensor(X, device=device), ndl.Tensor(y, device=device)
+        out = model(X)
+        loss = loss_fn(out, y)
+        if opt is not None:
+            opt.reset_grad()
+            loss.backward()
+            opt.step()
+        correct += np.sum(np.argmax(out.numpy(), axis=1) == y.numpy())
+        total_loss += loss.numpy() * y.shape[0]
+    return correct / len(dataloader.dataset), total_loss / len(dataloader.dataset)
     ### END YOUR SOLUTION
 
 
@@ -134,7 +149,10 @@ def train_cifar10(model, dataloader, n_epochs=1, optimizer=ndl.optim.Adam,
     """
     np.random.seed(4)
     ### BEGIN YOUR SOLUTION
-    raise NotImplementedError()
+    opt = optimizer(model.parameters(), lr=lr, weight_decay=weight_decay)
+    for _ in range(n_epochs):
+        avg_acc, avg_loss = epoch_general_cifar10(dataloader, model, loss_fn(), opt)
+    return avg_acc, avg_loss
     ### END YOUR SOLUTION
 
 
@@ -153,7 +171,7 @@ def evaluate_cifar10(model, dataloader, loss_fn=nn.SoftmaxLoss):
     """
     np.random.seed(4)
     ### BEGIN YOUR SOLUTION
-    raise NotImplementedError()
+    return epoch_general_cifar10(dataloader, model, loss_fn())
     ### END YOUR SOLUTION
 
 
@@ -180,7 +198,25 @@ def epoch_general_ptb(data, model, seq_len=40, loss_fn=nn.SoftmaxLoss(), opt=Non
     """
     np.random.seed(4)
     ### BEGIN YOUR SOLUTION
-    raise NotImplementedError()
+    if opt is not None:
+        model.train()
+    else:
+        model.eval()
+    correct, total_loss, total = 0, 0, 0
+    h = None
+    for i in range(0, data.shape[0] - 1, seq_len):
+        X, y = ndl.data.get_batch(data, i, seq_len, device=device, dtype=dtype)
+        out, h = model(X, h)
+        h = tuple(x.detach() for x in h) if isinstance(h, tuple) else h.detach()
+        loss = loss_fn(out, y)
+        if opt is not None:
+            opt.reset_grad()
+            loss.backward()
+            opt.step()
+        correct += np.sum(out.numpy().argmax(axis=1) == y.numpy())
+        total_loss += loss.numpy() * y.shape[0]
+        total += y.shape[0]
+    return correct / total, total_loss / total
     ### END YOUR SOLUTION
 
 
@@ -207,7 +243,10 @@ def train_ptb(model, data, seq_len=40, n_epochs=1, optimizer=ndl.optim.SGD,
     """
     np.random.seed(4)
     ### BEGIN YOUR SOLUTION
-    raise NotImplementedError()
+    opt = optimizer(model.parameters(), lr=lr, weight_decay=weight_decay)
+    for _ in range(n_epochs):
+        avg_acc, avg_loss = epoch_general_ptb(data, model, seq_len, loss_fn(), opt, clip, device, dtype)
+    return avg_acc, avg_loss
     ### END YOUR SOLUTION
 
 def evaluate_ptb(model, data, seq_len=40, loss_fn=nn.SoftmaxLoss,
@@ -227,7 +266,7 @@ def evaluate_ptb(model, data, seq_len=40, loss_fn=nn.SoftmaxLoss,
     """
     np.random.seed(4)
     ### BEGIN YOUR SOLUTION
-    raise NotImplementedError()
+    return epoch_general_ptb(data, model, seq_len, loss_fn(), device=device, dtype=dtype)
     ### END YOUR SOLUTION
 
 ### CODE BELOW IS FOR ILLUSTRATION, YOU DO NOT NEED TO EDIT
